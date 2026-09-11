@@ -19,9 +19,9 @@ logging.basicConfig(
 )
 
 
-def fetch_data_from_api():
+def fetch_data_from_api( skip, limit):
     try:
-        response = requests.get(f"{API_URL}/products", timeout=10)
+        response = requests.get(f"{API_URL}/products?limit={limit}&skip={skip}", timeout=10)
         response.raise_for_status()  # Raise an error for bad responses (4xx or 5xx)
 
         data = response.json()
@@ -44,14 +44,28 @@ def fetch_data_from_api():
         return None
 
 
-data = fetch_data_from_api()
-if data is not None:
-    product_list = data["products"]
-    print(len(product_list))
+data = fetch_data_from_api(0, 30)
 
-    print(data["total"])
-    print(data["skip"])
-    print(data["limit"])
-    print(product_list[0]["title"])
-    print(product_list[0]["price"])
-    print(product_list[0]["tags"][0])
+
+
+# prgination
+
+
+all_products = []
+
+def fetch_all_products():
+    if data is not None:
+        skip = data["limit"]
+        all_products.extend(data["products"])
+        while skip < data["total"]:
+            page_data = fetch_data_from_api(skip, data["limit"])
+            if page_data is not None:
+                all_products.extend(page_data["products"])
+
+            skip = skip + data["limit"]
+    return all_products
+
+
+
+products = fetch_all_products()
+print(len(products))
