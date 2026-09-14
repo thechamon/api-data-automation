@@ -2,3 +2,4 @@ test.py
 .env
 venv
 app.log
+statement.txt
