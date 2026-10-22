@@ -1,5 +1,22 @@
 test.py
-.env
-venv
-app.log
 statement.txt
+.vscode/
+
+# Environment variables
+.env
+
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+
+# Generated reports
+reports/
+# Python cache
+__pycache__/
+*.py[cod]
