@@ -1,3 +1,5 @@
+import json
+import csv
 import requests
 import logging
 import os
@@ -13,10 +15,14 @@ load_dotenv(BASE_DIR/ ".env")  # Load environment variables from .env file
 
 API_URL = os.getenv("API_URL")
 
+LOG_FILE = BASE_DIR / "app.log"
+
 logging.basicConfig(
-    filename='app.log',
-    level=logging.INFO, 
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    encoding="utf-8",
+    force=True
 )
 
 
@@ -188,13 +194,117 @@ avarage_price = total_price / len(clean_products)
 
 
 
-category_counts = {}
+category_stats = {}
 
 for product in clean_products:
     category = product["category"]
-    if category in category_counts:
-        category_counts[category] += 1
-    else:
-        category_counts[category] = 1
 
-print(category_counts)
+    if category not in category_stats:
+        category_stats[category] = {
+            "count": 0,
+            "total_price": 0
+        }
+
+    category_stats[category]["count"] += 1
+    category_stats[category]["total_price"] += product["price"]
+
+
+for category, stats in category_stats.items():
+    count = stats["count"]
+    total_price = stats["total_price"]
+    average_price = total_price / count if count > 0 else 0
+    # print(f"{category}: ${average_price:.2f}")
+
+
+
+def filter_products(products, min_price=None, min_rating=None):
+    filtered_products = [
+        product for product in products
+        if (min_price is None or product["price"] >= min_price)
+        and (min_rating is None or product["rating"] >= min_rating)
+    ]
+    return filtered_products
+
+
+# Filter by price
+expensive_products = filter_products(clean_products, min_price=100)
+
+# Filter by rating
+top_rated_products = filter_products(clean_products, min_rating=4.5)
+
+# Filter by both price and rating
+high_value_products = filter_products(
+    clean_products,
+    min_price=100,
+    min_rating=4.5
+)
+
+
+
+
+def write_report_to_file(products, filename):
+    file_path = Path(filename)
+
+    try:
+        # Create directories if they don't exist
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write JSON report
+        with file_path.open("w", encoding="utf-8") as file:
+            json.dump(products, file, indent=4, ensure_ascii=False)
+
+        logging.info(
+            "JSON report generated successfully: %s | Products: %d",
+            file_path,
+            len(products)
+        )
+
+    except (OSError, TypeError, ValueError) as e:
+        logging.exception("Failed to generate JSON report: %s", file_path)
+        raise
+
+
+REPORTS_DIR = BASE_DIR / "reports"
+JSON_REPORT = REPORTS_DIR / "products.json"
+
+write_report_to_file(clean_products, JSON_REPORT)
+
+
+def write_csv_report(products, filename):
+    file_path = Path(filename)
+
+    try:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with file_path.open(
+            "w",
+            encoding="utf-8",
+            newline=""
+        ) as file:
+            fieldnames = [
+                "id",
+                "name",
+                "brand",
+                "price",
+                "rating",
+                "category",
+                "width",
+                "barcode"
+            ]
+
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(products)
+
+        logging.info(
+            "CSV report generated successfully: %s | Products: %d",
+            file_path,
+            len(products)
+        )
+
+    except (OSError, TypeError, ValueError, csv.Error):
+        logging.exception("Failed to generate CSV report: %s", file_path)
+        raise
+
+
+write_csv_report(clean_products, REPORTS_DIR / "products.csv")
